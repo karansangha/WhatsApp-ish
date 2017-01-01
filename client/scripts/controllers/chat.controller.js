@@ -1,80 +1,117 @@
 import Ionic from 'ionic-scripts';
-import { _ } from 'meteor/underscore';
-import { Meteor } from 'meteor/meteor';
-import { Controller } from 'angular-ecmascript/module-helpers';
-import { Chats, Messages } from '../../../lib/collections';
+import {
+    _
+} from 'meteor/underscore';
+import {
+    Meteor
+} from 'meteor/meteor';
+import {
+    MeteorCameraUI
+} from 'meteor/okland:camera-ui';
+import {
+    Controller
+} from 'angular-ecmascript/module-helpers';
+import {
+    Chats,
+    Messages
+} from '../../../lib/collections';
 
 export default class ChatCtrl extends Controller {
-  constructor() {
-    super(...arguments);
+    constructor() {
+        super(...arguments);
 
-    this.chatId = this.$stateParams.chatId;
-    this.isIOS = Ionic.Platform.isWebView() && Ionic.Platform.isIOS();
-    this.isCordova = Meteor.isCordova;
+        this.chatId = this.$stateParams.chatId;
+        this.isIOS = Ionic.Platform.isWebView() && Ionic.Platform.isIOS();
+        this.isCordova = Meteor.isCordova;
 
-    this.helpers({
-      messages() {
-        return Messages.find({ chatId: this.chatId });
-      },
-      data() {
-        return Chats.findOne(this.chatId);
-      }
-    });
+        this.helpers({
+            messages() {
+                return Messages.find({
+                    chatId: this.chatId
+                });
+            },
+            data() {
+                return Chats.findOne(this.chatId);
+            }
+        });
 
-    this.autoScroll();
-  }
-
-  sendMessage() {
-    if (_.isEmpty(this.message)) return;
-
-    this.callMethod('newMessage', {
-      text: this.message,
-      type: 'text',
-      chatId: this.chatId
-    });
-
-    delete this.message;
-  }
-
-  inputUp () {
-    if (this.isIOS) {
-      this.keyboardHeight = 216;
+        this.autoScroll();
     }
 
-    this.scrollBottom(true);
-  }
+    sendPicture() {
+        MeteorCameraUI.getPicture({}, (err, data) => {
+            if (err) return this.handleError(err);
 
-  inputDown () {
-    if (this.isIOS) {
-      this.keyboardHeight = 0;
+            this.callMethod('newMessage', {
+                picture: data,
+                type: 'picture',
+                chatId: this.chatId
+            });
+        });
     }
 
-    this.$ionicScrollDelegate.$getByHandle('chatScroll').resize();
-  }
+    sendMessage() {
+        if (_.isEmpty(this.message)) return;
 
-  closeKeyboard () {
-    if (this.isCordova) {
-      cordova.plugins.Keyboard.close();
+        this.callMethod('newMessage', {
+            text: this.message,
+            type: 'text',
+            chatId: this.chatId
+        });
+
+        delete this.message;
     }
-  }
 
-  autoScroll() {
-    let recentMessagesNum = this.messages.length;
+    inputUp() {
+        if (this.isIOS) {
+            this.keyboardHeight = 216;
+        }
 
-    this.autorun(() => {
-      const currMessagesNum = this.getCollectionReactively('messages').length;
-      const animate = recentMessagesNum != currMessagesNum;
-      recentMessagesNum = currMessagesNum;
-      this.scrollBottom(animate);
-    });
-  }
+        this.scrollBottom(true);
+    }
 
-  scrollBottom(animate) {
-    this.$timeout(() => {
-      this.$ionicScrollDelegate.$getByHandle('chatScroll').scrollBottom(animate);
-    }, 300);
-  }
+    inputDown() {
+        if (this.isIOS) {
+            this.keyboardHeight = 0;
+        }
+
+        this.$ionicScrollDelegate.$getByHandle('chatScroll').resize();
+    }
+
+    closeKeyboard() {
+        if (this.isCordova) {
+            cordova.plugins.Keyboard.close();
+        }
+    }
+
+    autoScroll() {
+        let recentMessagesNum = this.messages.length;
+
+        this.autorun(() => {
+            const currMessagesNum = this.getCollectionReactively('messages').length;
+            const animate = recentMessagesNum != currMessagesNum;
+            recentMessagesNum = currMessagesNum;
+            this.scrollBottom(animate);
+        });
+    }
+
+    scrollBottom(animate) {
+        this.$timeout(() => {
+            this.$ionicScrollDelegate.$getByHandle('chatScroll').scrollBottom(animate);
+        }, 300);
+    }
+
+    handleError(err) {
+        if (err.error == 'cancel') return;
+        this.$log.error('Profile save error ', err);
+
+        this.$ionicPopup.alert({
+            title: err.reason || 'Save failed',
+            template: 'Please try again',
+            okType: 'button-positive button-clear'
+        });
+    }
 }
 
 ChatCtrl.$name = 'ChatCtrl';
-ChatCtrl.$inject = ['$stateParams', '$timeout', '$ionicScrollDelegate'];
+ChatCtrl.$inject = ['$stateParams', '$timeout', '$ionicScrollDelegate', '$ionicPopup', '$log'];
